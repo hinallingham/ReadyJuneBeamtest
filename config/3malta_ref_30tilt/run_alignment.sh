@@ -15,6 +15,11 @@ PED_RUN=${2:-"001"}
 # Executable Path Bind
 CORRY_EXEC="/home/hinata/package/corryvreckan/bin/corry"
 
+# Discord Webhook Grid Bindings
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1435563629243269140/G1ATUg9qCZJcHr7A6WSFx4FEKRnHqFP1Xr1PCjcaB4Poos8nmprq3ocTi_iaHLjfSYDr"
+SCRIPT_NAME=$(basename "$0")
+USERNAME="allpix-runner@$(hostname)"
+
 # Filesystem Topology
 GEOM_DIR="../../geometry/3malta_ref_30tilt"
 OUTPUT_DIR="../../output"
@@ -104,10 +109,49 @@ sed -e "s|@RUN@|${RUN_NUMBER}|g" \
 ${CORRY_EXEC} -c "${TMP_ALIGN}"
 rm -f "${TMP_ALIGN}"
 
+log_done "Phase 3 complete. Master Aligned Topology State locked in: ${GEOM_ALIGNED}"
+echo ""
+
+# ------------------------------------------------------------------------------
+# PHASE 4: Automated QC Plot Generation & Discord Notification
+# ------------------------------------------------------------------------------
+log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Telegram..."
+
+MACRO_NAME="check_full_qc.C"
+ROOT_OUT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
+TARGET_IMAGE="alignment_qc_result.png"
+
+# Resolve path to the shared ROOT macro
+if [ -f "${MACRO_NAME}" ]; then
+    MACRO_PATH="${MACRO_NAME}"
+elif [ -f "../../DAQ/${MACRO_NAME}" ]; then
+    MACRO_PATH="../../DAQ/${MACRO_NAME}"
+else
+    echo -e "\e[1;31m[ERROR]\e[0m ${MACRO_NAME} not found in current directory or DAQ path."
+    exit 1
+fi
+
+# Run ROOT in batch mode to process telemetry figures
+log_info "Analyzing ${ROOT_OUT_FILE} via ${MACRO_PATH}..."
+root -l -b -q "${MACRO_PATH}(\"${ROOT_OUT_FILE}\")"
+
+# Ship the static image binary directly to Discord via secure cURL
+if [ -f "${TARGET_IMAGE}" ]; then
+    log_info "Transmitting QC image artifact to Discord..."
+    curl -X POST \
+         -H "Content-Type: multipart/form-data" \
+         -F "username=${USERNAME}" \
+         -F "content=🚀 **[Automated Telemetry Signal]** Alignment process complete for **30-Degree Tilted Run ${RUN_NUMBER}**! 2D Correlations and 1D Spatial Residuals with red bold fit statistics are compiled below." \
+         -F "file=@${TARGET_IMAGE}" \
+         "${DISCORD_WEBHOOK_URL}"
+else
+    echo -e "\e[1;31m[ERROR]\e[0m Failed to generate ${TARGET_IMAGE}. Notification aborted."
+fi
+
 # ------------------------------------------------------------------------------
 # SYSTEM TERMINATION SIGNALS
 # ------------------------------------------------------------------------------
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
 log_done "Tilted telescope data pipelines integrated successfully with zero warnings."
-log_info "Master Aligned Topology State locked in: ${GEOM_ALIGNED}"
+log_info "Telemetry synchronized completely with Discord channel."
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"

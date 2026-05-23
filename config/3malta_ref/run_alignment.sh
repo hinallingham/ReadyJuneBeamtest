@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-#  MALTA2 Telescope 3-Plane Alignment Pipeline
+#  MALTA2 Telescope 3-Plane Alignment Pipeline (With Discord & ROOT Telemetry)
 #  System Architecture & Automation Suite
 #  Author: Hinata Nakamura (Quark Physics Laboratory, Hiroshima University)
 # ==============================================================================
@@ -15,8 +15,13 @@ PED_RUN=${2:-"001"}
 # Executable Path Bind
 CORRY_EXEC="/home/hinata/package/corryvreckan/bin/corry"
 
+# Discord Webhook Grid Bindings
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1435563629243269140/G1ATUg9qCZJcHr7A6WSFx4FEKRnHqFP1Xr1PCjcaB4Poos8nmprq3ocTi_iaHLjfSYDr"
+SCRIPT_NAME=$(basename "$0")
+USERNAME="allpix-runner@$(hostname)"
+
 # Filesystem Topology
-GEOM_DIR="../../geometry"
+GEOM_DIR="../../geometry/3malta_ref"
 OUTPUT_DIR="../../output"
 mkdir -p "${OUTPUT_DIR}"
 
@@ -104,10 +109,53 @@ sed -e "s|@RUN@|${RUN_NUMBER}|g" \
 ${CORRY_EXEC} -c "${TMP_ALIGN}"
 rm -f "${TMP_ALIGN}"
 
+log_done "Phase 3 complete. Master Aligned Topology State locked in: ${GEOM_ALIGNED}"
+echo ""
+
+# ------------------------------------------------------------------------------
+# PHASE 4: 【NEW】 Automated QC Plot Generation & Discord Notification
+# ------------------------------------------------------------------------------
+log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Telegram..."
+
+# 1. Dynamically locate the macro (Checking DAQ directory or local directory)
+MACRO_NAME="check_full_qc.C"
+ROOT_OUT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
+TARGET_IMAGE="alignment_qc_result.png"
+
+# Handle paths depending on where this script is running
+if [ -f "${MACRO_NAME}" ]; then
+    MACRO_PATH="${MACRO_NAME}"
+elif [ -f "../../DAQ/${MACRO_NAME}" ]; then
+    MACRO_PATH="../../DAQ/${MACRO_NAME}"
+else
+    echo -e "\e[1;31m[ERROR]\e[0m ${MACRO_NAME} not found in current directory or DAQ path."
+    exit 1
+fi
+
+# 2. Fire ROOT in batch mode (-b) and quit automatically (-q) to render plots quietly
+log_info "Analyzing ${ROOT_OUT_FILE} via ${MACRO_PATH}..."
+root -l -b -q "${MACRO_PATH}(\"${ROOT_OUT_FILE}\")"
+
+# 3. Securely transport the image payload directly to Discord API endpoint
+if [ -f "${TARGET_IMAGE}" ]; then
+    log_info "Transmitting QC image artifact to Discord..."
+    curl -X POST \
+         -H "Content-Type: multipart/form-data" \
+         -F "username=${USERNAME}" \
+         -F "content=🚀 **[Automated Telemetry Signal]** Alignment process complete for **Run ${RUN_NUMBER}**! Visualized 2D Correlations and 1D Residuals with custom Gaussian fit markers are compiled below." \
+         -F "file=@${TARGET_IMAGE}" \
+         "${DISCORD_WEBHOOK_URL}"
+    
+    # Optional cleanup: uncomment if you don't want to leave temporary PNGs in the folder
+    # rm -f "${TARGET_IMAGE}" "alignment_qc_result.pdf"
+else
+    echo -e "\e[1;31m[ERROR]\e[0m Failed to generate ${TARGET_IMAGE}. Notification skipped."
+fi
+
 # ------------------------------------------------------------------------------
 # SYSTEM TERMINATION SIGNALS
 # ------------------------------------------------------------------------------
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
 log_done "All data pipelines integrated successfully with zero warnings."
-log_info "Master Aligned Topology State locked in: ${GEOM_ALIGNED}"
+log_info "Telemetry synchronized completely with Discord channel."
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
