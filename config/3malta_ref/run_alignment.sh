@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-#  MALTA2 Telescope 3-Plane Alignment Pipeline (With Discord & ROOT Telemetry)
+#  MALTA2 Telescope 3-Plane Alignment & Analysis Pipeline
 #  System Architecture & Automation Suite
 #  Author: Hinata Nakamura (Quark Physics Laboratory, Hiroshima University)
 # ==============================================================================
@@ -35,6 +35,7 @@ GEOM_ALIGNED="${GEOM_DIR}/3malta_aligned.conf"
 TMP_PED="tmp_pedestal.conf"
 TMP_PREALIGN="tmp_prealign.conf"
 TMP_ALIGN="tmp_align.conf"
+TMP_ANALYSI="tmp_analysis.conf"
 
 # Terminal Color Codes
 CLR_STAGE="\e[1;36m"
@@ -113,14 +114,35 @@ log_done "Phase 3 complete. Master Aligned Topology State locked in: ${GEOM_ALIG
 echo ""
 
 # ------------------------------------------------------------------------------
-# PHASE 4: 【NEW】 Automated QC Plot Generation & Discord Notification
+# PHASE 3.5: High-Statistics Physics Tracking Analysis
 # ------------------------------------------------------------------------------
-log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Telegram..."
+log_stage "Executing Phase 3.5: Final Analysis with Aligned Geometry Topology..."
+log_info "Source Map: ${GEOM_ALIGNED}"
+
+# Process the template with the master aligned geometry configuration
+sed -e "s|@RUN@|${RUN_NUMBER}|g" \
+    -e "s|@GEOM_IN@|${GEOM_ALIGNED}|g" \
+    -e "s|@GEOM_OUT@|${GEOM_ALIGNED}_final|g" \
+    template_analysis.conf > "${TMP_ANALYSI}"
+
+${CORRY_EXEC} -c "${TMP_ANALYSI}"
+rm -f "${TMP_ANALYSI}"
+
+log_done "Phase 3.5 complete. Physics analysis histogram created successfully."
+echo ""
+
+# ------------------------------------------------------------------------------
+# PHASE 4: Automated QC Plot Generation & Discord Notification
+# ------------------------------------------------------------------------------
+log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Notification..."
 
 # 1. Dynamically locate the macro (Checking DAQ directory or local directory)
 MACRO_NAME="check_full_qc.C"
-ROOT_OUT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
 TARGET_IMAGE="alignment_qc_result.png"
+
+# Target both alignment output (for 2D correlations) and analysis output (for 1D residuals)
+ALIGN_ROOT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
+ANALYSIS_ROOT_FILE="output/Analysis_run${RUN_NUMBER}.root"
 
 # Handle paths depending on where this script is running
 if [ -f "${MACRO_NAME}" ]; then
@@ -132,9 +154,9 @@ else
     exit 1
 fi
 
-# 2. Fire ROOT in batch mode (-b) and quit automatically (-q) to render plots quietly
-log_info "Analyzing ${ROOT_OUT_FILE} via ${MACRO_PATH}..."
-root -l -b -q "${MACRO_PATH}(\"${ROOT_OUT_FILE}\")"
+# 2. Fire ROOT in batch mode with dual file parameters for correlation & tracking hybrid mapping
+log_info "Analyzing ${ALIGN_ROOT_FILE} & ${ANALYSIS_ROOT_FILE} via ${MACRO_PATH}..."
+root -l -b -q "${MACRO_PATH}(\"${ALIGN_ROOT_FILE}\",\"${ANALYSIS_ROOT_FILE}\")"
 
 # 3. Securely transport the image payload directly to Discord API endpoint
 if [ -f "${TARGET_IMAGE}" ]; then
@@ -142,7 +164,7 @@ if [ -f "${TARGET_IMAGE}" ]; then
     curl -X POST \
          -H "Content-Type: multipart/form-data" \
          -F "username=${USERNAME}" \
-         -F "content=🚀 **[Automated Telemetry Signal]** Alignment process complete for **Run ${RUN_NUMBER}**! Visualized 2D Correlations and 1D Residuals with custom Gaussian fit markers are compiled below." \
+         -F "content=🚀 **[Automated Telemetry Signal]** Alignment & Physics Tracking Analysis complete for **Run ${RUN_NUMBER}**! Visualized 2D Correlations (from Alignment Run) and High-Precision Residuals (from Analysis Run with custom Gaussian fit markers) for MALTA_1 and MALTA_2 are compiled below." \
          -F "file=@${TARGET_IMAGE}" \
          "${DISCORD_WEBHOOK_URL}"
     

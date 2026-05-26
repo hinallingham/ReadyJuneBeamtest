@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # ==============================================================================
-#  MALTA2 Telescope 3-Plane Alignment Pipeline (30-Degree Tilted Setup)
+#  MALTA2 Telescope 3-Plane Alignment & Analysis Pipeline
 #  System Architecture & Automation Suite
 #  Author: Hinata Nakamura (Quark Physics Laboratory, Hiroshima University)
 # ==============================================================================
 
 set -e
 
-# Core Parameters (Run 002: Tilted Beam, Run 001: Baseline Pedestal)
+# Core Parameters
 RUN_NUMBER=${1:-"002"}
 PED_RUN=${2:-"001"}
 
@@ -35,6 +35,7 @@ GEOM_ALIGNED="${GEOM_DIR}/3malta_aligned.conf"
 TMP_PED="tmp_pedestal.conf"
 TMP_PREALIGN="tmp_prealign.conf"
 TMP_ALIGN="tmp_align.conf"
+TMP_ANALYSI="tmp_analysis.conf"
 
 # Terminal Color Codes
 CLR_STAGE="\e[1;36m"
@@ -56,8 +57,8 @@ log_info() {
 
 clear
 echo -e "${CLR_INFO}=====================================================================${CLR_RESET}"
-echo -e "  CORRYVRECKAN AUTOMATED PIPELINE: 30-DEGREE TILTED TELESCOPE        "
-echo -e "  Target Core Dataset : Run ${RUN_NUMBER} (Tilted Beam Interaction)   "
+echo -e "  CORRYVRECKAN AUTOMATED PIPELINE: MULTI-STAGE TRACKING ALIGNMENT    "
+echo -e "  Target Core Dataset : Run ${RUN_NUMBER} (Beam Interaction Mode)     "
 echo -e "  Baseline Pedestal   : Run ${PED_RUN} (Static Noise Map)           "
 echo -e "${CLR_INFO}=====================================================================${CLR_RESET}"
 
@@ -96,7 +97,7 @@ log_done "Phase 2 complete. Initial displacement localized: ${GEOM_PREALIGNED}"
 echo ""
 
 # ------------------------------------------------------------------------------
-# PHASE 3: Micro-scale Matrix Minimization (Precision Millepede Alignment)
+# PHASE 3: Micro-scale Matrix Minimization
 # ------------------------------------------------------------------------------
 log_stage "Executing Phase 3: High-Precision Millepede Global Alignment..."
 log_info "Source Map: ${GEOM_PREALIGNED}"
@@ -113,15 +114,37 @@ log_done "Phase 3 complete. Master Aligned Topology State locked in: ${GEOM_ALIG
 echo ""
 
 # ------------------------------------------------------------------------------
+# PHASE 3.5: High-Statistics Physics Tracking Analysis
+# ------------------------------------------------------------------------------
+log_stage "Executing Phase 3.5: Final Analysis with Aligned Geometry Topology..."
+log_info "Source Map: ${GEOM_ALIGNED}"
+
+# Process the template with the master aligned geometry configuration
+sed -e "s|@RUN@|${RUN_NUMBER}|g" \
+    -e "s|@GEOM_IN@|${GEOM_ALIGNED}|g" \
+    -e "s|@GEOM_OUT@|${GEOM_ALIGNED}_final|g" \
+    template_analysis.conf > "${TMP_ANALYSI}"
+
+${CORRY_EXEC} -c "${TMP_ANALYSI}"
+rm -f "${TMP_ANALYSI}"
+
+log_done "Phase 3.5 complete. Physics analysis histogram created successfully."
+echo ""
+
+# ------------------------------------------------------------------------------
 # PHASE 4: Automated QC Plot Generation & Discord Notification
 # ------------------------------------------------------------------------------
-log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Telegram..."
+log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Notification..."
 
+# 1. Dynamically locate the macro (Checking DAQ directory or local directory)
 MACRO_NAME="check_full_qc.C"
-ROOT_OUT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
 TARGET_IMAGE="alignment_qc_result.png"
 
-# Resolve path to the shared ROOT macro
+# Target both alignment output (for 2D correlations) and analysis output (for 1D residuals)
+ALIGN_ROOT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
+ANALYSIS_ROOT_FILE="output/Analysis_run${RUN_NUMBER}.root"
+
+# Handle paths depending on where this script is running
 if [ -f "${MACRO_NAME}" ]; then
     MACRO_PATH="${MACRO_NAME}"
 elif [ -f "../../DAQ/${MACRO_NAME}" ]; then
@@ -131,27 +154,30 @@ else
     exit 1
 fi
 
-# Run ROOT in batch mode to process telemetry figures
-log_info "Analyzing ${ROOT_OUT_FILE} via ${MACRO_PATH}..."
-root -l -b -q "${MACRO_PATH}(\"${ROOT_OUT_FILE}\")"
+# 2. Fire ROOT in batch mode with dual file parameters for correlation & tracking hybrid mapping
+log_info "Analyzing ${ALIGN_ROOT_FILE} & ${ANALYSIS_ROOT_FILE} via ${MACRO_PATH}..."
+root -l -b -q "${MACRO_PATH}(\"${ALIGN_ROOT_FILE}\",\"${ANALYSIS_ROOT_FILE}\")"
 
-# Ship the static image binary directly to Discord via secure cURL
+# 3. Securely transport the image payload directly to Discord API endpoint
 if [ -f "${TARGET_IMAGE}" ]; then
     log_info "Transmitting QC image artifact to Discord..."
     curl -X POST \
          -H "Content-Type: multipart/form-data" \
          -F "username=${USERNAME}" \
-         -F "content=🚀 **[Automated Telemetry Signal]** Alignment process complete for **30-Degree Tilted Run ${RUN_NUMBER}**! 2D Correlations and 1D Spatial Residuals with red bold fit statistics are compiled below." \
+         -F "content=🚀 **[Automated Telemetry Signal]** Alignment & Physics Tracking Analysis complete for **Run ${RUN_NUMBER}**! Visualized 2D Correlations (from Alignment Run) and High-Precision Residuals (from Analysis Run with custom Gaussian fit markers) for MALTA_1 and MALTA_2 are compiled below." \
          -F "file=@${TARGET_IMAGE}" \
          "${DISCORD_WEBHOOK_URL}"
+    
+    # Optional cleanup: uncomment if you don't want to leave temporary PNGs in the folder
+    # rm -f "${TARGET_IMAGE}" "alignment_qc_result.pdf"
 else
-    echo -e "\e[1;31m[ERROR]\e[0m Failed to generate ${TARGET_IMAGE}. Notification aborted."
+    echo -e "\e[1;31m[ERROR]\e[0m Failed to generate ${TARGET_IMAGE}. Notification skipped."
 fi
 
 # ------------------------------------------------------------------------------
 # SYSTEM TERMINATION SIGNALS
 # ------------------------------------------------------------------------------
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
-log_done "Tilted telescope data pipelines integrated successfully with zero warnings."
+log_done "All data pipelines integrated successfully with zero warnings."
 log_info "Telemetry synchronized completely with Discord channel."
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
