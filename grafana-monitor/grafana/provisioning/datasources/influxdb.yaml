@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB-corry
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    uid: influxdb-corry
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: malta
+      defaultBucket: corry
+      tlsSkipVerify: true
+    secureJsonData:
+      token: malta-monitor-token
+    editable: true

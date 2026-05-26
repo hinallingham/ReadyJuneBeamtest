@@ -1,0 +1,306 @@
+{
+  "annotations": {"list": []},
+  "description": "MALTA2 Corryvreckan Online Monitor",
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":0}, "id":100, "title":"MALTA2 Run Status", "type":"row" },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "OFFLINE",
+          "mappings": [{"type":"range","options":{"from":0,"to":999999999,"result":{"text":"RUNNING","color":"green","index":0}}}],
+          "thresholds": {"mode":"absolute","steps":[{"color":"dark-gray","value":null},{"color":"green","value":0}]}
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":0,"y":1},
+      "id": 1,
+      "options": {"colorMode":"background","graphMode":"none","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"value","text":{"valueSize":52}},
+      "title": "RUN STATUS",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"corry_status\")\n  |> filter(fn: (r) => r._field == \"elapsed_seconds\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"orange","value":50},{"color":"green","value":200}]},
+          "unit": "reqps",
+          "decimals": 1
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":4,"y":1},
+      "id": 2,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"value","text":{"valueSize":46}},
+      "title": "Event Rate",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_rate\")\n  |> filter(fn: (r) => r._field == \"event_rate\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"fixed","fixedColor":"blue"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"blue","value":null}]},
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":8,"y":1},
+      "id": 3,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"value","text":{"valueSize":46}},
+      "title": "Total Events",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_rate\")\n  |> filter(fn: (r) => r._field == \"event_number\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"fixed","fixedColor":"purple"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"purple","value":null}]},
+          "unit": "dthms"
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":12,"y":1},
+      "id": 4,
+      "options": {"colorMode":"background","graphMode":"none","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"value","text":{"valueSize":46}},
+      "title": "Run Duration",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_status\")\n  |> filter(fn: (r) => r._field == \"elapsed_seconds\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "OFFLINE",
+          "mappings": [
+            {"type":"value","options":{"0":{"text":"BEAM OK","color":"green","index":0}}},
+            {"type":"value","options":{"1":{"text":"WARNING","color":"red","index":1}}}
+          ],
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1}]}
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":16,"y":1},
+      "id": 5,
+      "options": {"colorMode":"background","graphMode":"none","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"value","text":{"valueSize":38}},
+      "title": "Beam Status",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -30s)\n  |> filter(fn: (r) => r._measurement == \"corry_status\")\n  |> filter(fn: (r) => r._field == \"warning_active\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null},{"color":"yellow","value":3},{"color":"red","value":5}]},
+          "unit": "none",
+          "decimals": 2
+        }
+      },
+      "gridPos": {"h":6,"w":4,"x":20,"y":1},
+      "id": 6,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto","text":{"valueSize":46}},
+      "title": "Track χ²/ndof",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_tracking\")\n  |> filter(fn: (r) => r._field == \"chi2ndof_mean\")\n  |> last()","refId":"A"}]
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":7}, "id":101, "title":"Detector Status  —  Clusters / Event", "type":"row" },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"yellow","value":0.5},{"color":"green","value":1.0}]},
+          "unit": "none", "decimals": 3
+        }
+      },
+      "gridPos": {"h":5,"w":8,"x":0,"y":8},
+      "id": 10,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto","text":{"titleSize":18,"valueSize":52}},
+      "title": "MALTA_0",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_detector\")\n  |> filter(fn: (r) => r.detector == \"MALTA_0\")\n  |> filter(fn: (r) => r._field == \"clusters_per_event\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"yellow","value":0.5},{"color":"green","value":1.0}]},
+          "unit": "none", "decimals": 3
+        }
+      },
+      "gridPos": {"h":5,"w":8,"x":8,"y":8},
+      "id": 11,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto","text":{"titleSize":18,"valueSize":52}},
+      "title": "MALTA_1",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_detector\")\n  |> filter(fn: (r) => r.detector == \"MALTA_1\")\n  |> filter(fn: (r) => r._field == \"clusters_per_event\")\n  |> last()","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"thresholds"},
+          "noValue": "—",
+          "thresholds": {"mode":"absolute","steps":[{"color":"red","value":null},{"color":"yellow","value":0.5},{"color":"green","value":1.0}]},
+          "unit": "none", "decimals": 3
+        }
+      },
+      "gridPos": {"h":5,"w":8,"x":16,"y":8},
+      "id": 12,
+      "options": {"colorMode":"background","graphMode":"area","justifyMode":"center","orientation":"auto","reduceOptions":{"calcs":["lastNotNull"],"fields":"","values":false},"textMode":"auto","text":{"titleSize":18,"valueSize":52}},
+      "title": "MALTA_2",
+      "type": "stat",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"corry_detector\")\n  |> filter(fn: (r) => r.detector == \"MALTA_2\")\n  |> filter(fn: (r) => r._field == \"clusters_per_event\")\n  |> last()","refId":"A"}]
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":13}, "id":102, "title":"Alignment Quality  —  Residuals", "type":"row" },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "lengthum", "decimals": 4,
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null}]}
+        }
+      },
+      "gridPos": {"h":9,"w":12,"x":0,"y":14},
+      "id": 20,
+      "options": {"legend":{"calcs":["lastNotNull","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"none"}},
+      "title": "Residual X — RMS (per Detector)",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_residual\")\n  |> filter(fn: (r) => r.axis == \"X\")\n  |> filter(fn: (r) => r._field == \"rms\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "lengthum", "decimals": 4,
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null}]}
+        }
+      },
+      "gridPos": {"h":9,"w":12,"x":12,"y":14},
+      "id": 21,
+      "options": {"legend":{"calcs":["lastNotNull","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"none"}},
+      "title": "Residual Y — RMS (per Detector)",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_residual\")\n  |> filter(fn: (r) => r.axis == \"Y\")\n  |> filter(fn: (r) => r._field == \"rms\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":23}, "id":103, "title":"Rate Monitor", "type":"row" },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "reqps",
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null}]}
+        }
+      },
+      "gridPos": {"h":8,"w":12,"x":0,"y":24},
+      "id": 30,
+      "options": {"legend":{"calcs":["lastNotNull","max","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"single","sort":"none"}},
+      "title": "Event Rate",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_rate\")\n  |> filter(fn: (r) => r._field == \"event_rate\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "none", "decimals": 3,
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null}]}
+        }
+      },
+      "gridPos": {"h":8,"w":12,"x":12,"y":24},
+      "id": 31,
+      "options": {"legend":{"calcs":["lastNotNull","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"none"}},
+      "title": "Clusters / Event (per Detector)",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_detector\")\n  |> filter(fn: (r) => r._field == \"clusters_per_event\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    },
+
+    { "collapsed": false, "gridPos": {"h":1,"w":24,"x":0,"y":32}, "id":104, "title":"Tracking Quality", "type":"row" },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "none", "decimals": 3,
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null},{"color":"yellow","value":3},{"color":"red","value":5}]}
+        }
+      },
+      "gridPos": {"h":8,"w":12,"x":0,"y":33},
+      "id": 40,
+      "options": {"legend":{"calcs":["lastNotNull","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"single","sort":"none"}},
+      "title": "Track χ²/ndof",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_tracking\")\n  |> filter(fn: (r) => r._field == \"chi2ndof_mean\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    },
+
+    {
+      "datasource": {"type":"influxdb","uid":"influxdb-corry"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode":"palette-classic"},
+          "custom": {"drawStyle":"line","fillOpacity":15,"lineWidth":2,"pointSize":4,"showPoints":"auto","spanNulls":false},
+          "unit": "none", "decimals": 2,
+          "thresholds": {"mode":"absolute","steps":[{"color":"green","value":null}]}
+        }
+      },
+      "gridPos": {"h":8,"w":12,"x":12,"y":33},
+      "id": 41,
+      "options": {"legend":{"calcs":["lastNotNull","mean"],"displayMode":"list","placement":"bottom","showLegend":true},"tooltip":{"mode":"multi","sort":"none"}},
+      "title": "Cluster Size Mean (per Detector)",
+      "type": "timeseries",
+      "targets": [{"datasource":{"type":"influxdb","uid":"influxdb-corry"},"query":"from(bucket: \"corry\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"corry_cluster\")\n  |> filter(fn: (r) => r._field == \"mean_size\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")","refId":"A"}]
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["malta", "testbeam"],
+  "templating": {"list": []},
+  "time": {"from": "now-30m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MALTA Online Monitor",
+  "uid": "malta-monitor",
+  "version": 1
+}
