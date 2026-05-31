@@ -27,6 +27,7 @@ mkdir -p "${OUTPUT_DIR}"
 
 # Geometry Pipeline Tracking
 GEOM_INIT="${GEOM_DIR}/3malta_init.conf"
+GEOM_BEAMCHECK="${GEOM_DIR}/3malta_beamcheck_masked.conf"
 GEOM_PED_MASKED="${GEOM_DIR}/3malta_ped_masked.conf"
 GEOM_PREALIGNED="${GEOM_DIR}/3malta_prealigned.conf"
 GEOM_ALIGNED="${GEOM_DIR}/3malta_aligned.conf"
@@ -35,6 +36,7 @@ GEOM_ALIGNED="${GEOM_DIR}/3malta_aligned.conf"
 TMP_PED="tmp_pedestal.conf"
 TMP_PREALIGN="tmp_prealign.conf"
 TMP_ALIGN="tmp_align.conf"
+TMP_ALIGNCHECK="tmp_allaligncheck.conf"
 TMP_ANALYSI="tmp_analysis.conf"
 
 # Terminal Color Codes
@@ -66,10 +68,18 @@ echo -e "${CLR_INFO}============================================================
 # PHASE 1: Static Noise Extraction
 # ------------------------------------------------------------------------------
 log_stage "Executing Phase 1: Frequency-based Pedestal Masking..."
-log_info "Source Map: ${GEOM_INIT}"
+
+# If run_beamcheck.sh was run beforehand, propagate its noise masks into Phase 1
+if [ -f "${GEOM_BEAMCHECK}" ]; then
+    GEOM_PHASE1_IN="${GEOM_BEAMCHECK}"
+    log_info "Source Map: ${GEOM_PHASE1_IN}  [beamcheck masks propagated]"
+else
+    GEOM_PHASE1_IN="${GEOM_INIT}"
+    log_info "Source Map: ${GEOM_PHASE1_IN}"
+fi
 
 sed -e "s|@RUN@|${PED_RUN}|g" \
-    -e "s|@GEOM_IN@|${GEOM_INIT}|g" \
+    -e "s|@GEOM_IN@|${GEOM_PHASE1_IN}|g" \
     -e "s|@GEOM_OUT@|${GEOM_PED_MASKED}|g" \
     template_mask.conf > "${TMP_PED}"
 
@@ -114,70 +124,49 @@ log_done "Phase 3 complete. Master Aligned Topology State locked in: ${GEOM_ALIG
 echo ""
 
 # ------------------------------------------------------------------------------
-# PHASE 3.5: High-Statistics Physics Tracking Analysis
+# PHASE 3.5: Post-Alignment QC Check (Correlations 2D + Residuals)
 # ------------------------------------------------------------------------------
-log_stage "Executing Phase 3.5: Final Analysis with Aligned Geometry Topology..."
+log_stage "Executing Phase 3.5: Post-Alignment Correlation & Residual Check..."
 log_info "Source Map: ${GEOM_ALIGNED}"
 
-# Process the template with the master aligned geometry configuration
+ALIGNCHECK_DIR="output/allaligncheck"
+mkdir -p "${ALIGNCHECK_DIR}"
+
 sed -e "s|@RUN@|${RUN_NUMBER}|g" \
     -e "s|@GEOM_IN@|${GEOM_ALIGNED}|g" \
-    -e "s|@GEOM_OUT@|${GEOM_ALIGNED}_final|g" \
-    template_analysis.conf > "${TMP_ANALYSI}"
+    template_allaligncheck.conf > "${TMP_ALIGNCHECK}"
 
-${CORRY_EXEC} -c "${TMP_ANALYSI}"
-rm -f "${TMP_ANALYSI}"
+${CORRY_EXEC} -c "${TMP_ALIGNCHECK}"
+rm -f "${TMP_ALIGNCHECK}"
 
-log_done "Phase 3.5 complete. Physics analysis histogram created successfully."
+ALIGNCHECK_ROOT="output/allaligncheck_run${RUN_NUMBER}.root"
+CORR2D_PNG="${ALIGNCHECK_DIR}/correlation2D_run${RUN_NUMBER}.png"
+RESIDUALS_PNG="${ALIGNCHECK_DIR}/residuals_run${RUN_NUMBER}.png"
+
+for MACRO_FILE in "check_correlation2D.C" "check_residuals.C"; do
+    if [ -f "${MACRO_FILE}" ]; then
+        MACRO_FOUND="${MACRO_FILE}"
+    elif [ -f "../../DAQ/${MACRO_FILE}" ]; then
+        MACRO_FOUND="../../DAQ/${MACRO_FILE}"
+    else
+        echo -e "\e[1;31m[ERROR]\e[0m ${MACRO_FILE} not found."
+        exit 1
+    fi
+    if [ "${MACRO_FILE}" = "check_correlation2D.C" ]; then
+        root -l -b -q "${MACRO_FOUND}(\"${ALIGNCHECK_ROOT}\",\"${CORR2D_PNG}\")"
+    else
+        root -l -b -q "${MACRO_FOUND}(\"${ALIGNCHECK_ROOT}\",\"${RESIDUALS_PNG}\")"
+    fi
+done
+
+log_done "Phase 3.5 complete. QC plots: ${CORR2D_PNG}  ${RESIDUALS_PNG}"
 echo ""
-
-# ------------------------------------------------------------------------------
-# PHASE 4: Automated QC Plot Generation & Discord Notification
-# ------------------------------------------------------------------------------
-log_stage "Executing Phase 4: Running ROOT QC Analysis & Dispatching Notification..."
-
-# 1. Dynamically locate the macro (Checking DAQ directory or local directory)
-MACRO_NAME="check_full_qc.C"
-TARGET_IMAGE="alignment_qc_result.png"
-
-# Target both alignment output (for 2D correlations) and analysis output (for 1D residuals)
-ALIGN_ROOT_FILE="output/align_millepede_run${RUN_NUMBER}.root"
-ANALYSIS_ROOT_FILE="output/Analysis_run${RUN_NUMBER}.root"
-
-# Handle paths depending on where this script is running
-if [ -f "${MACRO_NAME}" ]; then
-    MACRO_PATH="${MACRO_NAME}"
-elif [ -f "../../DAQ/${MACRO_NAME}" ]; then
-    MACRO_PATH="../../DAQ/${MACRO_NAME}"
-else
-    echo -e "\e[1;31m[ERROR]\e[0m ${MACRO_NAME} not found in current directory or DAQ path."
-    exit 1
-fi
-
-# 2. Fire ROOT in batch mode with dual file parameters for correlation & tracking hybrid mapping
-log_info "Analyzing ${ALIGN_ROOT_FILE} & ${ANALYSIS_ROOT_FILE} via ${MACRO_PATH}..."
-root -l -b -q "${MACRO_PATH}(\"${ALIGN_ROOT_FILE}\",\"${ANALYSIS_ROOT_FILE}\")"
-
-# 3. Securely transport the image payload directly to Discord API endpoint
-if [ -f "${TARGET_IMAGE}" ]; then
-    log_info "Transmitting QC image artifact to Discord..."
-    curl -X POST \
-         -H "Content-Type: multipart/form-data" \
-         -F "username=${USERNAME}" \
-         -F "content=🚀 **[Automated Telemetry Signal]** Alignment & Physics Tracking Analysis complete for **Run ${RUN_NUMBER}**! Visualized 2D Correlations (from Alignment Run) and High-Precision Residuals (from Analysis Run with custom Gaussian fit markers) for MALTA_1 and MALTA_2 are compiled below." \
-         -F "file=@${TARGET_IMAGE}" \
-         "${DISCORD_WEBHOOK_URL}"
-    
-    # Optional cleanup: uncomment if you don't want to leave temporary PNGs in the folder
-    # rm -f "${TARGET_IMAGE}" "alignment_qc_result.pdf"
-else
-    echo -e "\e[1;31m[ERROR]\e[0m Failed to generate ${TARGET_IMAGE}. Notification skipped."
-fi
 
 # ------------------------------------------------------------------------------
 # SYSTEM TERMINATION SIGNALS
 # ------------------------------------------------------------------------------
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
-log_done "All data pipelines integrated successfully with zero warnings."
-log_info "Telemetry synchronized completely with Discord channel."
+log_done "All pipelines complete. Masking -> Prealignment -> Alignment -> QC done."
+log_done "Correlation2D : ${CORR2D_PNG}"
+log_done "Residuals     : ${RESIDUALS_PNG}"
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
