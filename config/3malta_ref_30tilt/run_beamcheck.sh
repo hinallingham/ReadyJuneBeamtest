@@ -19,6 +19,8 @@ BEAMCHECK_ROOT="output/beamcheck_run${RUN_NUMBER}.root"
 OUTPUT_DIR="output/beamcheck"
 OUTPUT_PNG="${OUTPUT_DIR}/beamcheck_run${RUN_NUMBER}.png"
 
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1435563629243269140/G1ATUg9qCZJcHr7A6WSFx4FEKRnHqFP1Xr1PCjcaB4Poos8nmprq3ocTi_iaHLjfSYDr"
+
 CLR_STAGE="\e[1;36m"
 CLR_DONE="\e[1;32m"
 CLR_INFO="\e[1;34m"
@@ -86,3 +88,21 @@ fi
 log_done "PNG    : ${OUTPUT_PNG}"
 log_done "Masks  : ${GEOM_OUT}"
 echo -e "${CLR_DONE}=================================================${CLR_RESET}"
+
+# ------------------------------------------------------------------------------
+# Step 3: Send PNG to Discord
+# ------------------------------------------------------------------------------
+log_stage "Sending plot to Discord..."
+
+if [ "${BEAM_EXIT}" -ne 0 ]; then
+    DISCORD_MSG="**[MALTA2 Beam Check]** Run \`${RUN_NUMBER}\` :warning: **FAIL** — beam offset > 3 mm on at least one sensor"
+else
+    DISCORD_MSG="**[MALTA2 Beam Check]** Run \`${RUN_NUMBER}\` :white_check_mark: **PASS** — beam well-centered"
+fi
+
+curl -s \
+    -F "payload_json={\"content\": \"${DISCORD_MSG}\"}" \
+    -F "file=@${OUTPUT_PNG}" \
+    "${DISCORD_WEBHOOK_URL}" > /dev/null
+
+log_done "Discord notification sent."

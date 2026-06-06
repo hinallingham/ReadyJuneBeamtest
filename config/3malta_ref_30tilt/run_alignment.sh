@@ -10,15 +10,12 @@ set -e
 
 # Core Parameters
 RUN_NUMBER=${1:-"002"}
-PED_RUN=${2:-"001"}
 
 # Executable Path Bind
 CORRY_EXEC="/home/hinata/package/corryvreckan/bin/corry"
 
-# Discord Webhook Grid Bindings
+# Discord Webhook
 DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1435563629243269140/G1ATUg9qCZJcHr7A6WSFx4FEKRnHqFP1Xr1PCjcaB4Poos8nmprq3ocTi_iaHLjfSYDr"
-SCRIPT_NAME=$(basename "$0")
-USERNAME="allpix-runner@$(hostname)"
 
 # Filesystem Topology
 GEOM_DIR="../../geometry/3malta_ref_30tilt"
@@ -28,16 +25,13 @@ mkdir -p "${OUTPUT_DIR}"
 # Geometry Pipeline Tracking
 GEOM_INIT="${GEOM_DIR}/3malta_init.conf"
 GEOM_BEAMCHECK="${GEOM_DIR}/3malta_beamcheck_masked.conf"
-GEOM_PED_MASKED="${GEOM_DIR}/3malta_ped_masked.conf"
 GEOM_PREALIGNED="${GEOM_DIR}/3malta_prealigned.conf"
 GEOM_ALIGNED="${GEOM_DIR}/3malta_aligned.conf"
 
 # Buffer Streams
-TMP_PED="tmp_pedestal.conf"
 TMP_PREALIGN="tmp_prealign.conf"
 TMP_ALIGN="tmp_align.conf"
 TMP_ALIGNCHECK="tmp_allaligncheck.conf"
-TMP_ANALYSI="tmp_analysis.conf"
 
 # Terminal Color Codes
 CLR_STAGE="\e[1;36m"
@@ -61,41 +55,23 @@ clear
 echo -e "${CLR_INFO}=====================================================================${CLR_RESET}"
 echo -e "  CORRYVRECKAN AUTOMATED PIPELINE: MULTI-STAGE TRACKING ALIGNMENT    "
 echo -e "  Target Core Dataset : Run ${RUN_NUMBER} (Beam Interaction Mode)     "
-echo -e "  Baseline Pedestal   : Run ${PED_RUN} (Static Noise Map)           "
 echo -e "${CLR_INFO}=====================================================================${CLR_RESET}"
-
-# ------------------------------------------------------------------------------
-# PHASE 1: Static Noise Extraction
-# ------------------------------------------------------------------------------
-log_stage "Executing Phase 1: Frequency-based Pedestal Masking..."
-
-if [ -f "${GEOM_BEAMCHECK}" ]; then
-    GEOM_PHASE1_IN="${GEOM_BEAMCHECK}"
-    log_info "Source Map: ${GEOM_PHASE1_IN}  [beamcheck masks propagated]"
-else
-    GEOM_PHASE1_IN="${GEOM_INIT}"
-    log_info "Source Map: ${GEOM_PHASE1_IN}"
-fi
-
-sed -e "s|@RUN@|${PED_RUN}|g" \
-    -e "s|@GEOM_IN@|${GEOM_PHASE1_IN}|g" \
-    -e "s|@GEOM_OUT@|${GEOM_PED_MASKED}|g" \
-    template_mask.conf > "${TMP_PED}"
-
-${CORRY_EXEC} -c "${TMP_PED}"
-rm -f "${TMP_PED}"
-
-log_done "Phase 1 complete. Static matrix exported to: ${GEOM_PED_MASKED}"
-echo ""
 
 # ------------------------------------------------------------------------------
 # PHASE 2: Macro-scale Structural Correction
 # ------------------------------------------------------------------------------
 log_stage "Executing Phase 2: Spatial Coarse-graining Prealignment..."
-log_info "Source Map: ${GEOM_PED_MASKED}"
+
+if [ -f "${GEOM_BEAMCHECK}" ]; then
+    GEOM_PHASE2_IN="${GEOM_BEAMCHECK}"
+    log_info "Source Map: ${GEOM_PHASE2_IN}  [beamcheck masks propagated]"
+else
+    GEOM_PHASE2_IN="${GEOM_INIT}"
+    log_info "Source Map: ${GEOM_PHASE2_IN}"
+fi
 
 sed -e "s|@RUN@|${RUN_NUMBER}|g" \
-    -e "s|@GEOM_IN@|${GEOM_PED_MASKED}|g" \
+    -e "s|@GEOM_IN@|${GEOM_PHASE2_IN}|g" \
     -e "s|@GEOM_OUT@|${GEOM_PREALIGNED}|g" \
     template_prealign.conf > "${TMP_PREALIGN}"
 
@@ -165,7 +141,20 @@ echo ""
 # SYSTEM TERMINATION SIGNALS
 # ------------------------------------------------------------------------------
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
-log_done "All pipelines complete. Masking -> Prealignment -> Alignment -> QC done."
+log_done "All pipelines complete. Prealignment -> Alignment -> QC done."
 log_done "Correlation2D : ${CORR2D_PNG}"
 log_done "Residuals     : ${RESIDUALS_PNG}"
 echo -e "${CLR_DONE}=====================================================================${CLR_RESET}"
+
+# ------------------------------------------------------------------------------
+# Discord Notification: Send QC plots
+# ------------------------------------------------------------------------------
+log_stage "Sending QC plots to Discord..."
+
+curl -s \
+    -F "payload_json={\"content\": \"**[MALTA2 Alignment]** Run \`${RUN_NUMBER}\` :white_check_mark: **Complete** — Prealignment → Millepede → QC done\"}" \
+    -F "files[0]=@${CORR2D_PNG}" \
+    -F "files[1]=@${RESIDUALS_PNG}" \
+    "${DISCORD_WEBHOOK_URL}" > /dev/null
+
+log_done "Discord notification sent."

@@ -33,8 +33,9 @@ git clone https://gitlab.cern.ch/corryvreckan/corryvreckan
 
 ```bash
 cd corryvreckan/src/modules
-git clone https://github.com/hinallingham/CorryvreckanMALTALoadModule EventLoaderMALTA
+git clone https://github.com/hinallingham/CorryvreckanMALTALoadModule
 ```
+ディレクトリ名を EventLoaderMALTA に変更する。
 
 ---
 
@@ -43,6 +44,7 @@ git clone https://github.com/hinallingham/CorryvreckanMALTALoadModule EventLoade
 ```bash
 git clone https://github.com/hinallingham/Online-Monitor OnlineMonitor
 ```
+ディレクトリ名を OnlinMonitor に変更する。
 
 ---
 
