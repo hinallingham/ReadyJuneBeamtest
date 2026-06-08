@@ -69,9 +69,15 @@ echo ""
 # ------------------------------------------------------------------------------
 log_stage "Generating efficiency plots from ${ANALYSIS_ROOT}..."
 
-MACRO_FILE="make_efficiency_plots.C"
-if [ ! -f "${MACRO_FILE}" ]; then
-    echo -e "\e[1;31m[ERROR]\e[0m ${MACRO_FILE} not found."
+MACRO_FILE=""
+for candidate in "make_efficiency_plots.C" "../../DAQ/make_efficiency_plots.C"; do
+    if [ -f "${candidate}" ]; then
+        MACRO_FILE="${candidate}"
+        break
+    fi
+done
+if [ -z "${MACRO_FILE}" ]; then
+    echo -e "\e[1;31m[ERROR]\e[0m make_efficiency_plots.C not found."
     exit 1
 fi
 
