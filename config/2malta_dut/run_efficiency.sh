@@ -17,7 +17,7 @@ CORRY_EXEC="/home/hinata/package/corryvreckan/bin/corry"
 DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1435563629243269140/G1ATUg9qCZJcHr7A6WSFx4FEKRnHqFP1Xr1PCjcaB4Poos8nmprq3ocTi_iaHLjfSYDr"
 
 # Data Path
-DATA_DIR="/home/MaltaSW/MaltaDAQ/TelescopeData"
+DATA_DIR="/home/hinata/MALTA2/Ready_June/data"
 
 # Filesystem Topology
 OUTPUT_DIR="output"
