@@ -107,7 +107,7 @@ void plot_efficiency_vs_ithr(const char* pairs_file, const char* outpng,
     TCanvas* c = new TCanvas("c_ithr", "Efficiency vs Ithr", 900, 700);
     c->SetMargin(0.13f, 0.05f, 0.13f, 0.10f);
 
-    gr->GetYaxis()->SetRangeUser(0.0, 1.05);
+    gr->GetYaxis()->SetRangeUser(0.9, 1.05);
     gr->Draw("AP");
 
     TLatex latex;
